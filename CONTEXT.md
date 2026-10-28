@@ -25,6 +25,7 @@ Un servidor MCP en Symfony (`mcp/sdk` + MCP Bundle) cuyas tools se **cobran por 
 - Sin Doctrine ni frontend. Tests PHPUnit sin red. README: de `git clone` a la demo en 5 minutos.
 
 ## Roadmap extra
+- Solana devnet como `SolanaExact`: portar `Solana.php`/`SolanaKey.php` de x402_pay (blockhash vía RPC inyectado en el constructor; verify offline decodificando la transacción). Después del middleware 402.
 - NEAR (`near:testnet`) como segunda familia de `Scheme`: delegate action NEP-366 firmada ed25519 (ext-sodium) + relayer. Estimado 3–5 días, sin verificar. Investigación/borrador delegable a Jules en una rama; entra solo si el flujo EVM anda el 9/11.
 
 ## Plan (fechas de la propuesta)
