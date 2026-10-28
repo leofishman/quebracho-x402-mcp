@@ -11,6 +11,7 @@ Decisions are recorded in [DECISIONS.md](DECISIONS.md).
 | 11-02 → 11-03 | 402 middleware, MCP in band (D2), claim once (D5) | done |
 | 11-04 → 11-05 | Paying clients, budget (D6), `app:ask` agent | done |
 | — | Address screening: OFAC, own lists, Chainalysis (D7) | done |
+| — | Deferred screening, budget released by the chain, NEAR payer proven (D8) | done |
 | 11-06 → 11-08 | Settle on testnet through a real facilitator behind `App\X402\Facilitator` | next |
 | **11-09** | **Cutoff**: if the full flow does not work by then, stay in mock mode and move on to the README and video | |
 | 11-10 → 11-15 | Durable budget, `demo.sh`, error handling, README | |

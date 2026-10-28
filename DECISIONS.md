@@ -79,3 +79,15 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
   - Release waits 60 s past `validBefore`, since the chain's clock, not ours, decides whether a signature can still settle. The RPC is trusted: one that lies or lags can free budget it should not.
   - An unread lookup (the tool failed, the claim was a duplicate) is cancelled, not read, so it neither blocks nor throws. Replays of one signature still each start a lookup before the claim (ponytail: no in-flight de-duplication).
   - NEAR screening needs that RPC check; NEAR is still out of the demo (D4).
+
+## D9 — One spelling per signed value, and the spec gaps we know of
+
+- Date: 2026-10-28
+- Status: accepted (Leo)
+- Context: x402-reviewer, second pass against the v2 spec. The EIP-712 encoder reads `0xAB…`, `0xab…` and `ab…` as the same bytes, while `Settlement::key` hashed the nonce as sent. One signature, re-sent with its nonce spelled differently, verified every time and won a new claim: N deliveries for one payment, the hole D5 says is closed (critical, reproduced). Malformed numbers (`validAfter: "0abc"`) also reached `gmp_init` and threw: a 5xx instead of a rejection.
+- Decision: `EvmExact::verify` accepts one spelling only: `from`/`to` `0x`+40 hex, `nonce` `0x`+64 hex, signature `0x`+130 hex, amounts and times plain decimals with no leading zero. Anything else is `invalid_payload`. `Settlement::key` lowercases the nonce too, so hex case alone cannot make a second claim. The HTTP transport now sends the failed `SettlementResponse` in `PAYMENT-RESPONSE`, as `transports-v2/http.md` asks.
+- Known divergences, left on purpose until a real facilitator exists:
+  - `settlement_pending` drops the transaction hash and is treated as a failure; it must keep the hash for reconciliation before going live.
+  - The HTTP transport answers an invalid payment with 402, not the 400 the spec's error table gives (MCP has no status codes; only `X402Middleware` is affected).
+  - `duplicate_settlement` comes from the SVM scheme, not v2 §9; official clients do not know it.
+  - EVM verification is offline: no balance check and no `transferWithAuthorization` simulation (`scheme_exact_evm.md`, phase 2). In mock mode a valid signature from an empty wallet gets the delivery.

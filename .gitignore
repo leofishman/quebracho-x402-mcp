@@ -7,3 +7,4 @@
 .php-cs-fixer.cache
 /.ddev/traefik/
 CONTEXT.md
+/packages/*/.phpunit.result.cache

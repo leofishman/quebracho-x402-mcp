@@ -67,7 +67,13 @@ final class Screening
         } elseif ($this->asksApi($check->address)) {
             $answer = $this->lookup($check->address);
             $check->defer(function () use ($answer, $check): ?string {
-                $reason = $answer();
+                try {
+                    $reason = $answer();
+                } catch (\Throwable $e) {
+                    // A 4xx (429, expired key) or a malformed answer: rejected, say why.
+                    $this->logger->error('x402 screening failed.', ['address' => $check->address, 'exception' => $e]);
+                    throw $e;
+                }
                 if (null !== $reason) {
                     $this->logger->warning('x402 address rejected.', ['role' => $check->role, 'network' => $check->network, 'address' => $check->address, 'reason' => $reason]);
                 }

@@ -121,7 +121,8 @@ First match wins: **our allowlist** (passes, even over OFAC), **our denylist**,
 sanctions API** (`X402_SCREENING_API_KEY`). The API lookup starts when the payment is
 checked and is read just before settling; answers are cached
 `X402_SCREENING_CACHE_TTL` seconds, and no answer in time follows
-`X402_SCREENING_UNAVAILABLE`.
+`X402_SCREENING_UNAVAILABLE`. Until `app:screening sync` has run once, the OFAC step
+matches nothing and only logs a warning: run it before taking payments.
 
 ```bash
 ddev exec --dir /var/www/html/app bin/console app:screening sync          # download OFAC's lists
@@ -140,7 +141,7 @@ ddev exec --dir /var/www/html/app bin/console app:screening check 0x…
 | `X402_PRICE` | `0.01` | Price per paid call, in USD. |
 | `X402_PAY_TO` | `0x7e51…6510` | Who gets paid. **This is the author's wallet.** Change it to yours. |
 | `X402_PAID_TOOLS` | `wisdom` | Comma-separated tool names that cost money. |
-| `X402_FACILITATOR` | `mock` | Must be set explicitly. Only `mock` exists yet (verified signatures, nothing settled); anything else fails at boot. |
+| `X402_FACILITATOR` | `mock` | Must be set explicitly. Only `mock` exists yet (verified signatures, nothing settled); anything else fails closed: every `/mcp` request errors, nothing is served for free. |
 | `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public and unfunded, enough for mock mode. Testnet keys only. |
 | `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
 | `X402_SCREENING_API_KEY` | empty | Chainalysis sanctions API key. Empty: only our lists and OFAC's. |
@@ -190,6 +191,41 @@ $network = Networks::add(chainId: 4202, asset: '0x…', name: 'USDC', version: '
 (`near:testnet`, NEP-366 delegate action, `ext-sodium`) is **experimental**:
 its `verify()` does not tie the public key to `sender_id` (the network checks
 that on settle), and it is not wired into the demo. Solana is planned.
+
+## Attacks it resists
+
+Each line is a test that fails if the defence breaks (`packages/x402/tests`,
+`app/tests`). Most come from reviewing this code against the x402 v2 spec;
+the reasons are in [DECISIONS.md](DECISIONS.md).
+
+**Seller side**
+- **One signature, many deliveries.** Each payment is claimed once (network,
+  payer, nonce) before the tool runs; copies get `duplicate_settlement` (D5;
+  20 concurrent copies were checked by hand, one delivery).
+  `X402McpMiddlewareTest::testAPaymentBuysOneDeliveryEvenUnsettled`. The EIP-712 encoder reads `0xAB…`, `0xab…` and `ab…` as the same nonce,
+  so a nonce spelled differently would be the same signature with a new claim
+  key: verification accepts one spelling only, and the key ignores hex case (D9).
+  `EvmExactTest::testOneSignatureIsOneClaimHoweverTheNonceIsSpelled`.
+- **Malleated signatures**: high-s rejected (EIP-2). `EvmExactTest::testRejectsAMalleatedHighSSignature`.
+- **Malformed payloads** get a rejection, never a 5xx. `EvmExactTest` (`tampered`).
+- **Paid output without payment**: settlement only after the tool succeeded, and
+  a failed or odd facilitator answer withholds the output.
+  `X402McpMiddlewareTest::testABrokenFacilitatorWithholdsTheOutput`.
+- **Long-lived signatures**: `validBefore` capped by the offer's timeout. `EvmExactTest::testRejectsAValidityWindowLongerThanTheOffer`.
+- **Paid calls inside a JSON-RPC batch**: refused (D3). `X402McpMiddlewareTest::testBatchWithAPaidCallIsRejected`.
+
+**Buyer side**
+- **A hostile 402**: the agent signs only known tokens and EIP-712 domains,
+  positive integer amounts within its cap, a canonical `payTo` (`0x` + 40 hex;
+  a padded one would sign to an address screening never saw), and short
+  validity. `BudgetTest::testRefusesAHostileOffer`.
+- **A seller that never confirms** cannot drain past the cap: the budget is spent
+  at signing, and given back only when the chain says the nonce was never used,
+  60 s after expiry (D6, D8). `PayingMcpClientTest`, `BudgetTest`.
+
+**Both sides**
+- **Sanctioned or reported addresses**: payer and `payTo` screened (D7); a list
+  or API that cannot answer fails closed. `app/tests/X402/ScreeningTest`.
 
 ## Status
 

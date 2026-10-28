@@ -1,9 +1,9 @@
 # AGENTS.md — quebracho-x402-mcp
 
-1. Leé `CONTEXT.md` si existe (es local, fuera de git) y lo que enlaza, y `DECISIONS.md`, antes de tocar código.
-2. Entorno: DDEV (`ddev start`; PHP corre dentro: `ddev composer …`, `ddev exec php …`, `ddev exec vendor/bin/phpunit`). No hay PHP en el host.
-3. Estilo: Symfony idiomático (atributos, DI por constructor, tipado estricto), PSR en la librería, nada de dependencias que un par de líneas reemplacen.
-4. Cada paso del plan termina con su criterio de "hecho cuando" verificado y registrado. No dar por hecho lo que solo compila.
-5. Nunca claves reales ni mainnet. Dudas de seguridad o de dinero: parar y preguntarle a Leo.
-6. Antes de cerrar: actualizar `CONTEXT.md` (sección Estado) y avisar al hub (`/home/leo/Proyects/_hub`, sesión del hub) con un resumen de 3 líneas: qué cambió, qué se verificó, qué sigue.
-7. No commitear ni hacer push sin que Leo lo pida (el repo es público: revisar que no haya secretos antes).
+1. Read `CONTEXT.md` if it exists (it is local, outside git) and whatever it links to, and `DECISIONS.md`, before touching code.
+2. Environment: DDEV (`ddev start`; PHP runs inside it: `ddev composer …`, `ddev exec php …`, `ddev exec vendor/bin/phpunit`). There is no PHP on the host.
+3. Style: idiomatic Symfony (attributes, constructor DI, strict types), PSR in the library, no dependency that a couple of lines can replace.
+4. Every step of the plan ends with its "done when" criterion verified and recorded. Do not count as done what only compiles.
+5. Never real keys or mainnet. Doubts about security or money: stop and ask the maintainer.
+6. Before closing: update `CONTEXT.md` (Status section) and send the coordination hub (see `CONTEXT.md`) a three-line summary: what changed, what was verified, what is next.
+7. Do not commit or push unless the maintainer asks (the repo is public: check for secrets first).

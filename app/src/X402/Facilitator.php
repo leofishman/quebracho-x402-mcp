@@ -10,8 +10,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Settles paid calls. Only mock mode exists yet, and it must be asked for:
- * X402_FACILITATOR=mock. Anything else fails at boot instead of serving
- * paid tools for free.
+ * X402_FACILITATOR=mock. Anything else makes every /mcp request fail
+ * (the controller cannot be built) instead of serving paid tools for free.
  */
 final class Facilitator
 {

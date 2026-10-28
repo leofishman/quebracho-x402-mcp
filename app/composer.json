@@ -80,5 +80,8 @@
         "name": "x402",
         "type": "path",
         "url": "../packages/x402"
-    }]
+    }],
+    "require-dev": {
+        "phpunit/phpunit": "^12"
+    }
 }

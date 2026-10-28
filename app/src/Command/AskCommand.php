@@ -15,6 +15,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 
 /**
  * An agent that discovers the MCP server's tools, pays the paid ones with
@@ -25,7 +26,7 @@ final class AskCommand
 {
     public function __construct(
         private readonly AgentInterface $agent,
-        private readonly McpClientInterface $buyer,
+        #[Target('buyer')] private readonly McpClientInterface $buyer,
         private readonly Receipts $receipts,
     ) {
     }
@@ -58,7 +59,7 @@ final class AskCommand
             $io->text('Nothing paid.');
         }
         $io->section('Answer');
-        $io->writeln((string) $answer);
+        $io->writeln(\is_string($answer) ? $answer : (string) json_encode($answer));
 
         return Command::SUCCESS;
     }
