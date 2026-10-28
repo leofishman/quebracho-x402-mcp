@@ -202,10 +202,7 @@ the reasons are in [DECISIONS.md](DECISIONS.md).
 - **One signature, many deliveries.** Each payment is claimed once (network,
   payer, nonce) before the tool runs; copies get `duplicate_settlement` (D5;
   20 concurrent copies were checked by hand, one delivery).
-  `X402McpMiddlewareTest::testAPaymentBuysOneDeliveryEvenUnsettled`. The EIP-712 encoder reads `0xAB…`, `0xab…` and `ab…` as the same nonce,
-  so a nonce spelled differently would be the same signature with a new claim
-  key: verification accepts one spelling only, and the key ignores hex case (D9).
-  `EvmExactTest::testOneSignatureIsOneClaimHoweverTheNonceIsSpelled`.
+  `X402McpMiddlewareTest::testAPaymentBuysOneDeliveryEvenUnsettled`.
 - **Malleated signatures**: high-s rejected (EIP-2). `EvmExactTest::testRejectsAMalleatedHighSSignature`.
 - **Malformed payloads** get a rejection, never a 5xx. `EvmExactTest` (`tampered`).
 - **Paid output without payment**: settlement only after the tool succeeded, and
@@ -226,6 +223,21 @@ the reasons are in [DECISIONS.md](DECISIONS.md).
 **Both sides**
 - **Sanctioned or reported addresses**: payer and `payTo` screened (D7); a list
   or API that cannot answer fails closed. `app/tests/X402/ScreeningTest`.
+
+### Compared with the official SDK
+
+Checked against `x402-foundation/x402` (TypeScript and Go, October 2026):
+
+- **A replay never runs the tool.** The official middlewares run the handler,
+  then settle, and drop the output if the chain rejects the spent nonce: every
+  replayed copy still costs the seller the tool's compute and side effects.
+  Here the payment is claimed before the handler, so a copy is refused before
+  any work is done (D5).
+- **The buyer has a spending cap.** The official clients have none. Here a
+  payment with no successful receipt stays spent until `authorizationState`
+  says the nonce was never used, never on the seller's word (D6, D8).
+- **Address screening**, for payer and `payTo`, failing closed. The official
+  SDK has none (D7).
 
 ## Status
 
