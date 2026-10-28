@@ -17,9 +17,9 @@ contributed by Quebracho.
 | Path | What it is |
 |---|---|
 | `packages/x402/` | `quebracho/x402`: framework-agnostic library (PSR-7/15/17/18, `ext-gmp`). Signs and verifies x402 payments. Contains no LLM or Symfony code. |
-| `app/` | Symfony 8.1 + `symfony/mcp-bundle`: an MCP server with a free `echo` tool and a paid `wisdom` tool. |
-| `bin/smoke.sh` | End-to-end check over real HTTP: free call, unpaid call (402), paid call (200 + receipt). |
-| `bin/pay.php` | Minimal buyer: turns a `PAYMENT-REQUIRED` header into a `PAYMENT-SIGNATURE`. |
+| `app/` | Symfony 8.1 + `symfony/mcp-bundle`: an MCP server with a free `echo` tool and a paid `wisdom` tool, and `bin/console app:ask`, a Symfony AI agent that discovers, pays and calls them. |
+| `bin/smoke.sh` | End-to-end check over real HTTP: free call, unpaid call (PaymentRequired), paid call (result + receipt). |
+| `bin/pay.php` | Minimal buyer: turns a PaymentRequired tool result into the same call, paid. |
 
 ## Quick start (5 minutes)
 
@@ -41,12 +41,10 @@ Expected output, abridged:
 == echo (free)
 {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"hola hackathon"}],...}}
 == wisdom, unpaid
-HTTP/1.1 402 Payment Required
-Payment-Required: eyJ4NDAyVmVyc2lvbiI6Mi...
+{"jsonrpc":"2.0","id":2,"result":{"isError":true,"structuredContent":{"x402Version":2,...
 == wisdom, paid
-HTTP/1.1 200 OK
-Payment-Response: eyJzdWNjZXNzIjp0cnVl...
-{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"Verify the effect, not the mechanism."}],...}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[...],"_meta":{"x402/payment-response":{"success":true,...}}}}
+OK
 ```
 
 The MCP endpoint is `https://quebracho-x402-mcp.ddev.site/mcp` (Streamable
@@ -59,19 +57,60 @@ Run the library tests (no network):
 ddev exec -d /var/www/html/packages/x402 vendor/bin/phpunit tests
 ```
 
+## The agent: `app:ask`
+
+A Symfony AI agent (`symfony/ai-bundle`) connects to the MCP server as a
+client (`mcp.clients.buyer.self` in `app/config/packages/mcp.yaml`), lists its
+tools and offers them to the LLM. The PSR-18 client under that MCP connection
+is `Quebracho\X402\PayingMcpClient`: when a tool answers with a
+PaymentRequired it signs with `X402_BUYER_KEY`, stays within
+`X402_BUDGET_USD`, resends the same call with the payment in `_meta` and
+reads the receipt.
+
+Point it at any OpenAI-compatible server with tool calling (llama.cpp,
+Ollama, ...) in `app/.env.local`:
+
+```bash
+LLM_BASE_URL=http://host:8080   # without /v1
+LLM_MODEL=your-model
+LLM_API_KEY=...
+```
+
+```bash
+ddev exec -d /var/www/html/app bin/console app:ask "dame un consejo de ingeniería pago"
+```
+
+```
+ Tools on the server: echo, wisdom
+ Paid tool "wisdom": 0.01 USDC (10000 atomic) on eip155:84532 to 0x7e51…6510, settled
+ Receipt: {"success":true,"transaction":"","network":"eip155:84532","payer":"0x2c75…5c23"}
+
+Answer
+------
+Aquí tienes un consejo de ingeniería pago: "Verifica el efecto, no el mecanismo." ...
+```
+
+No LLM at hand? `--tool wisdom` calls the tool directly through the same
+paying client. In mock mode `transaction` is empty: nothing moves on chain.
+
 ## How a paid call works
+
+x402 travels inside MCP messages, as the official
+[MCP transport spec](https://github.com/x402-foundation/x402/blob/main/specs/transports-v2/mcp.md)
+defines, so any x402-aware MCP client can pay:
 
 ```
 agent ──tools/call wisdom──▶ MCP server
-      ◀── 402 + PAYMENT-REQUIRED (price, token, network, payTo)
+      ◀── result: isError + PaymentRequired (price, token, network, payTo)
 signs an EIP-3009 transferWithAuthorization for exactly that price
-      ──same call + PAYMENT-SIGNATURE──▶ X402Middleware: verify ▶ run tool ▶ settle
-      ◀── 200 + tool result + PAYMENT-RESPONSE (receipt)
+      ──same call + params._meta["x402/payment"]──▶ X402McpMiddleware: verify ▶ run tool ▶ settle
+      ◀── tool result + _meta["x402/payment-response"] (receipt)
 ```
 
 Only `tools/call` of a priced tool is charged: `initialize`, `tools/list` and
 free tools pass through. The tool runs only after the payment verifies, and
-settlement happens only if the tool succeeded.
+each payment is claimed once before the tool runs (concurrent replays get `duplicate_settlement`), settlement happens only if the tool succeeded; if settlement fails, the tool
+output is withheld. Paid tools cannot be called inside a JSON-RPC batch.
 
 ## Configuration
 
@@ -83,20 +122,29 @@ settlement happens only if the tool succeeded.
 | `X402_PRICE` | `0.01` | Price per paid call, in USD. |
 | `X402_PAY_TO` | `0x7e51…6510` | Who gets paid. **This is the author's wallet.** Change it to yours. |
 | `X402_PAID_TOOLS` | `wisdom` | Comma-separated tool names that cost money. |
+| `X402_FACILITATOR` | `mock` | Must be set explicitly. Only `mock` exists yet (verified signatures, nothing settled); anything else fails at boot. |
+| `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public and unfunded, enough for mock mode. Testnet keys only. |
+| `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
+| `MCP_URL` | the DDEV site's `/mcp` | The MCP server the agent connects to. |
+| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | placeholders | The agent's OpenAI-compatible LLM; set them in `.env.local`. |
 
 ## Using the library
 
-**Seller**: put the PSR-15 middleware in front of anything:
+**Seller (MCP)**: `X402McpMiddleware` charges tool calls in band; `$price`
+gets the `tools/call` params. **Seller (plain HTTP)**: `X402Middleware` answers
+402 with `PAYMENT-REQUIRED`, for any endpoint:
 
 ```php
-use Quebracho\X402\{EvmExact, Networks, X402Middleware};
+use Quebracho\X402\{EvmExact, FileClaims, Networks, X402Middleware};
 
 $price = fn ($request) => [Networks::requirements('eip155:84532', '0.01', $payTo)]; // or null = free
-$middleware = new X402Middleware([new EvmExact()], $price, $psr17, $psr17);
+$middleware = new X402Middleware([new EvmExact()], $price, $claim, $psr17, $psr17);
 // Optional 5th argument: a settle callback (facilitator). Without it: mock mode.
 ```
 
-**Buyer**: wrap any PSR-18 client; it pays 402s within a budget:
+**Buyer (MCP)**: `PayingMcpClient` wraps the PSR-18 client of an MCP HTTP
+transport and pays tools in band; same arguments as below plus a PSR-17 stream
+factory. **Buyer (plain HTTP)**: wrap any PSR-18 client; it pays 402s within a budget:
 
 ```php
 use Quebracho\X402\{Budget, EvmExact, PayingHttpClient, Signer};
@@ -125,14 +173,14 @@ that on settle), and it is not wired into the demo. Solana is planned.
 
 Working and verified:
 - EIP-712 / EIP-3009 signing, checked against the EIP-712 spec vectors; offline `ecrecover`.
-- PSR-15 middleware: 402 flow, offline verification, settle-after-success.
-- PSR-18 paying client with a per-network spending cap.
+- PSR-15 middlewares: x402 over MCP (in band) and over plain HTTP (402); offline verification, settle-after-success.
+- Verification aligned with the reference facilitator: spec §9 reason codes, low-s signatures only, 6 s expiry slack.
+- PSR-18 paying clients with a per-network spending cap: MCP in band (`PayingMcpClient`) and plain HTTP 402 (`PayingHttpClient`).
 - Symfony MCP server charging a tool end to end (`bin/smoke.sh`).
+- Symfony AI agent (`app:ask`) that discovers, pays and calls the tool, verified against a local llama.cpp model (mock mode).
 
 Not yet:
 - Settlement on testnet through a facilitator (mock mode only for now).
-- The Symfony AI agent (`bin/console app:ask`) that discovers, pays and calls the tool.
-- Mock mode keeps no spent-nonce store, so a payment can be replayed until it expires. A real facilitator rejects it on settle.
 - Unverified: the EIP-712 domains of USDC on Ethereum Sepolia, Avalanche Fuji and Polygon Amoy (confirmed by the first testnet payment on each).
 
 ## License

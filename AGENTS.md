@@ -1,6 +1,6 @@
 # AGENTS.md — quebracho-x402-mcp
 
-1. Leé `CONTEXT.md` y lo que enlaza antes de tocar código.
+1. Leé `CONTEXT.md` si existe (es local, fuera de git) y lo que enlaza, y `DECISIONS.md`, antes de tocar código.
 2. Entorno: DDEV (`ddev start`; PHP corre dentro: `ddev composer …`, `ddev exec php …`, `ddev exec vendor/bin/phpunit`). No hay PHP en el host.
 3. Estilo: Symfony idiomático (atributos, DI por constructor, tipado estricto), PSR en la librería, nada de dependencias que un par de líneas reemplacen.
 4. Cada paso del plan termina con su criterio de "hecho cuando" verificado y registrado. No dar por hecho lo que solo compila.
