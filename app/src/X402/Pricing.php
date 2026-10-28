@@ -32,11 +32,15 @@ final class Pricing
         $body = $request->getBody();
         $message = json_decode((string) $body, true);
         // The transport reads the body after us.
-        $body->rewind();
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
         if (!\is_array($message)) {
             return null;
         }
         // A JSON-RPC batch pays for every paid call in it.
+        // ponytail: charged even if one call fails (HTTP 200 + JSON-RPC error);
+        // per-call settle or rejecting paid batches if that matters.
         $calls = array_is_list($message) ? $message : [$message];
         $paid = \count(array_filter($calls, fn ($m) => \is_array($m)
             && 'tools/call' === ($m['method'] ?? null)

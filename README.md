@@ -116,8 +116,10 @@ $network = Networks::add(chainId: 4202, asset: '0x…', name: 'USDC', version: '
 ```
 
 **Other chain families** implement the `Scheme` interface (`supports`,
-`pay`, `verify`), shaped after the x402 spec rather than after EVM. NEAR is in
-progress (PR #1); Solana is planned.
+`pay`, `verify`), shaped after the x402 spec rather than after EVM. `NearExact`
+(`near:testnet`, NEP-366 delegate action, `ext-sodium`) is **experimental**:
+its `verify()` does not tie the public key to `sender_id` (the network checks
+that on settle), and it is not wired into the demo. Solana is planned.
 
 ## Status
 
