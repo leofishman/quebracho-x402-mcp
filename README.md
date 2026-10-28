@@ -118,8 +118,10 @@ Both sides screen addresses with `App\X402\Screening`: the server checks the
 payer once its signature is verified, the agent checks `payTo` before it signs.
 First match wins: **our allowlist** (passes, even over OFAC), **our denylist**,
 **OFAC's sanctioned addresses** (a local copy), and optionally **Chainalysis'
-sanctions API** (`X402_SCREENING_API_KEY`; cached a day, fails closed, adds
-one HTTP call per new address).
+sanctions API** (`X402_SCREENING_API_KEY`). The API lookup starts when the payment is
+checked and is read just before settling; answers are cached
+`X402_SCREENING_CACHE_TTL` seconds, and no answer in time follows
+`X402_SCREENING_UNAVAILABLE`.
 
 ```bash
 ddev exec --dir /var/www/html/app bin/console app:screening sync          # download OFAC's lists
@@ -142,6 +144,9 @@ ddev exec --dir /var/www/html/app bin/console app:screening check 0x…
 | `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public and unfunded, enough for mock mode. Testnet keys only. |
 | `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
 | `X402_SCREENING_API_KEY` | empty | Chainalysis sanctions API key. Empty: only our lists and OFAC's. |
+| `X402_SCREENING_CACHE_TTL` | `86400` | Seconds an API answer (clean or sanctioned) is kept. |
+| `X402_SCREENING_TIMEOUT` | `3` | Seconds to wait for the API. |
+| `X402_SCREENING_UNAVAILABLE` | `reject` | No API answer in time (or a 5xx): `reject` or `allow`. |
 | `MCP_URL` | the DDEV site's `/mcp` | The MCP server the agent connects to. |
 | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | placeholders | The agent's OpenAI-compatible LLM; set them in `.env.local`. |
 

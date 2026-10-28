@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\X402;
 
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Quebracho\X402\AddressCheck;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
  * Screens every address in a payment: the payer (we sell) and payTo (we buy).
@@ -20,11 +22,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * 1. our allowlist: passes, even if a public list names it (the admin's call);
  * 2. our denylist: our own reports;
  * 3. OFAC's sanctioned addresses, synced to a local file (app:screening sync);
- * 4. Chainalysis' sanctions API, only when X402_SCREENING_API_KEY is set:
- *    one HTTP call per new address, cached a day, and it fails closed.
+ * 4. Chainalysis' sanctions API, only when X402_SCREENING_API_KEY is set.
  *
- * ponytail: the API call blocks the payment. PHP has no async I/O without
- * an event loop; whoever puts compliance before latency turns it on.
+ * The API is deferred: the request leaves when the payment is checked and is
+ * read just before settling (seller) or signing (buyer), so it overlaps the
+ * tool. Answers are cached X402_SCREENING_CACHE_TTL seconds. No answer within
+ * X402_SCREENING_TIMEOUT (or a 5xx) follows X402_SCREENING_UNAVAILABLE:
+ * "reject" (default) or "allow". Any other error rejects.
  */
 #[AsEventListener]
 final class Screening
@@ -36,10 +40,16 @@ final class Screening
     public function __construct(
         #[Autowire('%kernel.project_dir%/var/screening')] private readonly string $dir,
         #[Autowire(env: 'X402_SCREENING_API_KEY')] private readonly string $apiKey,
+        #[Autowire(env: 'int:X402_SCREENING_CACHE_TTL')] private readonly int $cacheTtl,
+        #[Autowire(env: 'float:X402_SCREENING_TIMEOUT')] private readonly float $timeout,
+        #[Autowire(env: 'X402_SCREENING_UNAVAILABLE')] private readonly string $unavailable,
         private readonly HttpClientInterface $http,
-        private readonly CacheInterface $cache,
+        private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
     ) {
+        if (!\in_array($unavailable, ['reject', 'allow'], true)) {
+            throw new \LogicException(\sprintf('X402_SCREENING_UNAVAILABLE="%s": use "reject" or "allow".', $unavailable));
+        }
     }
 
     public function __invoke(AddressCheck $check): void
@@ -54,11 +64,29 @@ final class Screening
         if (null !== $reason) {
             $this->logger->warning('x402 address rejected.', ['role' => $check->role, 'network' => $check->network, 'address' => $check->address, 'reason' => $reason]);
             $check->reject($reason);
+        } elseif ($this->asksApi($check->address)) {
+            $answer = $this->lookup($check->address);
+            $check->defer(function () use ($answer, $check): ?string {
+                $reason = $answer();
+                if (null !== $reason) {
+                    $this->logger->warning('x402 address rejected.', ['role' => $check->role, 'network' => $check->network, 'address' => $check->address, 'reason' => $reason]);
+                }
+
+                return $reason;
+            });
         }
     }
 
     /**
-     * Why this address is refused, or null.
+     * Everything app:screening check can say, the API included (it waits).
+     */
+    public function check(string $address): ?string
+    {
+        return $this->reason($address) ?? ($this->asksApi($address) ? $this->lookup($address)() : null);
+    }
+
+    /**
+     * Why our lists and OFAC refuse this address, or null (no API).
      */
     public function reason(string $address): ?string
     {
@@ -69,7 +97,6 @@ final class Screening
             \in_array($address, $own['allow'], true) => null,
             \in_array($address, $own['deny'], true) => 'address_denied',
             isset($this->ofac()[$address]) => 'address_sanctioned',
-            '' !== $this->apiKey && $this->sanctionedByApi($address) => 'address_sanctioned',
             default => null,
         };
     }
@@ -155,20 +182,66 @@ final class Screening
         return array_flip(preg_split('/\s+/', $text, -1, \PREG_SPLIT_NO_EMPTY));
     }
 
-    private function sanctionedByApi(string $address): bool
+    /**
+     * Whether the API has a say: it is on and we did not allow the address.
+     */
+    private function asksApi(string $address): bool
     {
-        // An error throws past the cache, so it is not remembered, and
-        // AddressCheck turns it into a rejection.
-        return $this->cache->get('x402_screening_'.hash('sha256', $address), function (ItemInterface $item) use ($address): bool {
-            $item->expiresAfter(86400);
-            $body = $this->http->request('GET', \sprintf(self::API_URL, rawurlencode($address)), ['headers' => ['X-API-Key' => $this->apiKey], 'timeout' => 5])->toArray();
+        return '' !== $this->apiKey && !\in_array(strtolower($address), $this->own()['allow'], true);
+    }
 
+    /**
+     * Starts the API lookup now (or reads the cache); the closure answers.
+     *
+     * @return \Closure(): ?string
+     */
+    private function lookup(string $address): \Closure
+    {
+        $item = $this->cache->getItem('x402_screening_'.hash('sha256', strtolower($address)));
+        if ($item->isHit()) {
+            $sanctioned = $item->get();
+
+            return static fn (): ?string => $sanctioned ? 'address_sanctioned' : null;
+        }
+        // Lazy: the request is on its way while the caller goes on.
+        $response = $this->http->request('GET', \sprintf(self::API_URL, rawurlencode($address)), [
+            'headers' => ['X-API-Key' => $this->apiKey],
+            'timeout' => $this->timeout,
+            'max_duration' => $this->timeout,
+        ]);
+
+        // Never read (the tool threw, settle not reached): cancel it instead of
+        // letting the response's destructor throw on its status.
+        $guard = new class($response) {
+            public function __construct(private readonly ResponseInterface $response)
+            {
+            }
+
+            public function __destruct()
+            {
+                $this->response->cancel();
+            }
+        };
+
+        return function () use ($response, $item, $address, $guard): ?string {
+            try {
+                $body = $response->toArray();
+            } catch (TransportExceptionInterface|ServerExceptionInterface $e) {
+                // No answer in time, or theirs is down: the configured policy.
+                $this->logger->error('x402 screening API unavailable.', ['address' => $address, 'policy' => $this->unavailable, 'exception' => $e]);
+                if ('allow' === $this->unavailable) {
+                    return null;
+                }
+                throw $e;
+            }
             if (!\is_array($body['identifications'] ?? null)) {
                 throw new \UnexpectedValueException('Chainalysis answered without "identifications".');
             }
+            $sanctioned = [] !== $body['identifications'];
+            $this->cache->save($item->set($sanctioned)->expiresAfter($this->cacheTtl));
 
-            return [] !== $body['identifications'];
-        });
+            return $sanctioned ? 'address_sanctioned' : null;
+        };
     }
 
     /**

@@ -61,3 +61,21 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
 - Decision: the library dispatches an `AddressCheck` (PSR-14, stoppable) when given a dispatcher: on the payer after `verify()` (signature proven) and before the claim; on `payTo` before the buyer signs. `Scheme` gains `payer()`. It fails closed: an unreadable address or a throwing listener is a rejection. The app answers it with `App\X402\Screening`: our allowlist > our denylist > OFAC (local file, `app:screening sync`) > Chainalysis API (opt-in by key). No Symfony detection: PSR-14 is the seam, Symfony's dispatcher is one implementation.
 - Not done, on purpose: IP blocking (infrastructure's job), async screening (no event loop; the API is opt-in for whoever puts compliance before latency), an admin UI (a console command for now), rejection codes from the spec (§9 has none for this; ours are `address_denied`, `address_sanctioned`, `address_check_failed`).
 - Consequences: a payer blocked by the seller has still spent the buyer's budget (it signed). NEAR's payer is `sender_id`, not bound to the key offline; a forged one passes screening and fails at settlement. OFAC lists are mainnet addresses, applied to every EVM chain alike (EVM entries only: 124 of 210). `Budget::allows` signs only a canonical `payTo` (`0x` + 40 hex): Eip712 pads, so `0330…` or `0x000330…` would sign to a sanctioned address that screening saw in another form (x402-reviewer, critical). A corrupt or unreadable list stops payments; a never-synced OFAC list only logs a warning (ponytail: no staleness check yet).
+
+## D8 — Deferred screening, budget freed by the chain, NEAR payer proven or absent
+
+- Date: 2026-10-28
+- Status: accepted (Leo)
+- Context: Leo accepted three follow-ups to D7. First, a sanctions API must not add its full latency to every payment. Second, a buyer that signed for a seller who then refused it should get that budget back. Third, a NEAR `sender_id` cannot be trusted offline.
+- Decision:
+  - A listener may `defer()` a closure. The seller dispatches the check right after verify and reads the deferred answer just before settling; a late rejection withholds the output, the same as a failed settle. The buyer waits before signing.
+  - In the app, the Chainalysis request leaves when the check is dispatched. Answers, clean or sanctioned, are cached `X402_SCREENING_CACHE_TTL` seconds. With no answer within `X402_SCREENING_TIMEOUT` (or a 5xx), `X402_SCREENING_UNAVAILABLE` decides: `reject` (the default) or `allow`. Any other error rejects. An address on our allowlist never reaches the API.
+  - `Budget` keeps every signed payment whose receipt did not say success. When the buyer next pays, `reclaim()` frees an entry once its `validBefore` has passed and the token's `authorizationState(from, nonce)` on chain says the nonce is unused. A used nonce or an RPC error keeps it spent. Never on the seller's word (D6).
+  - `NearExact::payer()` returns the `sender_id` only when an injected `$keyOwner` (RPC `view_access_key`) proves the key is theirs. Otherwise it returns NULL, which screening rejects.
+- Consequences:
+  - A payer rejected late still had the tool run (its output is withheld) and its payment claimed.
+  - The overlap between lookup and tool was not measured. Symfony HttpClient moves a request forward when the code waits on a response, so with a fast tool the API sets the pace on a payer's first payment, and the cache answers after that.
+  - Budget release is EVM only and per process; it needs the network's public RPC (from `Networks`).
+  - Release waits 60 s past `validBefore`, since the chain's clock, not ours, decides whether a signature can still settle. The RPC is trusted: one that lies or lags can free budget it should not.
+  - An unread lookup (the tool failed, the claim was a duplicate) is cancelled, not read, so it neither blocks nor throws. Replays of one signature still each start a lookup before the claim (ponytail: no in-flight de-duplication).
+  - NEAR screening needs that RPC check; NEAR is still out of the demo (D4).

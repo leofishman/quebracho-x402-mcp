@@ -45,7 +45,7 @@ final class ScreeningCommand
                 $io->success("$address: ".('deny' === $action ? 'denied.' : 'off our lists.'));
                 break;
             case 'check':
-                $io->writeln("$address: ".($this->screening->reason($address) ?? 'passes'));
+                $io->writeln("$address: ".($this->screening->check($address) ?? 'passes'));
                 break;
             case 'list':
                 $io->writeln(json_encode($this->screening->own(), \JSON_PRETTY_PRINT | \JSON_THROW_ON_ERROR));

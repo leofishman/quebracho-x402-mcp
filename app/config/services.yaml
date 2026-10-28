@@ -67,7 +67,8 @@ services:
             $budget: !service
                 class: Quebracho\X402\Budget
                 factory: ['Quebracho\X402\Budget', 'usd']
-                arguments: ['%env(X402_NETWORK)%', '%env(X402_BUDGET_USD)%']
+                # Expired signatures the seller never settled are freed, once the chain says so.
+                arguments: ['%env(X402_NETWORK)%', '%env(X402_BUDGET_USD)%', !closure '@App\X402\AuthorizationState']
             $streams: '@mcp.psr17_factory'
             $onPaid: !closure '@App\X402\Receipts'
             # AddressCheck on payTo before signing, answered by App\X402\Screening.
