@@ -21,3 +21,29 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    Quebracho\X402\EvmExact: ~
+
+    # ponytail: no settle callback = mock mode (X402_FACILITATOR=mock); the
+    # testnet facilitator plugs in here on 6–8/11.
+    Quebracho\X402\X402Middleware:
+        arguments:
+            $schemes: ['@Quebracho\X402\EvmExact']
+            $price: !closure '@App\X402\Pricing'
+            $responses: '@mcp.psr17_factory'
+            $streams: '@mcp.psr17_factory'
+
+    mcp.server.default.controller:
+        class: App\Controller\McpController
+        public: true
+        autowire: false
+        arguments:
+            - '@mcp.server.default'
+            - '@mcp.psr_http_factory'
+            - '@mcp.http_foundation_factory'
+            - '@mcp.psr17_factory'
+            - '@mcp.psr17_factory'
+            - '@mcp.server.default.middleware_factory'
+            - '@Quebracho\X402\X402Middleware'
+            - '@logger'
+        tags: [controller.service_arguments, { name: monolog.logger, channel: mcp }]
