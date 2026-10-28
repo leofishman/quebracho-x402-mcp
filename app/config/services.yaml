@@ -24,12 +24,18 @@ services:
 
     Quebracho\X402\EvmExact: ~
 
-    # ponytail: no settle callback = mock mode (X402_FACILITATOR=mock); the
-    # testnet facilitator plugs in here on 6–8/11.
-    Quebracho\X402\X402Middleware:
+    # One claim per payment, durable across processes on this host.
+    Quebracho\X402\FileClaims:
+        arguments: ['%kernel.project_dir%/var/x402-claims']
+
+    # Settlement goes through App\X402\Facilitator: X402_FACILITATOR=mock
+    # must be explicit; the testnet facilitator plugs in there on 6–8/11.
+    Quebracho\X402\X402McpMiddleware:
         arguments:
             $schemes: ['@Quebracho\X402\EvmExact']
             $price: !closure '@App\X402\Pricing'
+            $claim: !closure '@Quebracho\X402\FileClaims'
+            $settle: !closure '@App\X402\Facilitator'
             $responses: '@mcp.psr17_factory'
             $streams: '@mcp.psr17_factory'
 
@@ -44,6 +50,21 @@ services:
             - '@mcp.psr17_factory'
             - '@mcp.psr17_factory'
             - '@mcp.server.default.middleware_factory'
-            - '@Quebracho\X402\X402Middleware'
+            - '@Quebracho\X402\X402McpMiddleware'
             - '@logger'
         tags: [controller.service_arguments, { name: monolog.logger, channel: mcp }]
+
+    # Buyer side, for app:ask: pays paid tools in band within X402_BUDGET_USD.
+    Quebracho\X402\PayingMcpClient:
+        arguments:
+            $client: '@psr18.http_client'
+            $schemes:
+                - !service
+                    class: Quebracho\X402\EvmExact
+                    arguments: [!service { class: Quebracho\X402\Signer, arguments: ['%env(X402_BUYER_KEY)%'] }]
+            $budget: !service
+                class: Quebracho\X402\Budget
+                factory: ['Quebracho\X402\Budget', 'usd']
+                arguments: ['%env(X402_NETWORK)%', '%env(X402_BUDGET_USD)%']
+            $streams: '@mcp.psr17_factory'
+            $onPaid: !closure '@App\X402\Receipts'

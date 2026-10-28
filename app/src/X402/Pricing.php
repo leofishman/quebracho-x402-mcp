@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\X402;
 
-use Psr\Http\Message\ServerRequestInterface;
 use Quebracho\X402\Networks;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * What an MCP request costs: tools/call of a paid tool, nothing else.
+ * What an MCP tool call costs: paid tools have a price, the rest are free.
  */
 final class Pricing
 {
@@ -25,32 +24,14 @@ final class Pricing
     }
 
     /**
+     * @param array{name: string, arguments?: array<string, mixed>} $params The tools/call params.
+     *
      * @return list<array>|null The x402 `accepts` list, or null when free.
      */
-    public function __invoke(ServerRequestInterface $request): ?array
+    public function __invoke(array $params): ?array
     {
-        $body = $request->getBody();
-        $message = json_decode((string) $body, true);
-        // The transport reads the body after us.
-        if ($body->isSeekable()) {
-            $body->rewind();
-        }
-        if (!\is_array($message)) {
-            return null;
-        }
-        // A JSON-RPC batch pays for every paid call in it.
-        // ponytail: charged even if one call fails (HTTP 200 + JSON-RPC error);
-        // per-call settle or rejecting paid batches if that matters.
-        $calls = array_is_list($message) ? $message : [$message];
-        $paid = \count(array_filter($calls, fn ($m) => \is_array($m)
-            && 'tools/call' === ($m['method'] ?? null)
-            && \in_array($m['params']['name'] ?? null, $this->paidTools, true)));
-        if (0 === $paid) {
-            return null;
-        }
-        $req = Networks::requirements($this->network, $this->price, $this->payTo);
-        $req['amount'] = gmp_strval(gmp_mul($req['amount'], $paid));
-
-        return [$req];
+        return \in_array($params['name'], $this->paidTools, true)
+            ? [Networks::requirements($this->network, $this->price, $this->payTo)]
+            : null;
     }
 }

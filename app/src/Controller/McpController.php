@@ -9,7 +9,7 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Quebracho\X402\X402Middleware;
+use Quebracho\X402\X402McpMiddleware;
 use Symfony\AI\McpBundle\Http\MiddlewareFactory;
 use Symfony\Bridge\PsrHttpMessage\HttpFoundationFactoryInterface;
 use Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface;
@@ -29,7 +29,7 @@ final class McpController
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
         private readonly MiddlewareFactory $middlewareFactory,
-        private readonly X402Middleware $x402,
+        private readonly X402McpMiddleware $x402,
         private readonly ?LoggerInterface $logger = null,
     ) {
     }

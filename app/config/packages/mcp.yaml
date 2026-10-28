@@ -15,3 +15,13 @@ mcp:
             # Enable STDIO for clients such as Claude Desktop via bin/console mcp:server.
             # transports:
             #     stdio: true
+
+    # The app:ask agent reaches this same server as an MCP client; the
+    # PSR-18 client under it pays x402 in band (Quebracho\X402\PayingMcpClient).
+    clients:
+        buyer:
+            servers:
+                self:
+                    transport: http
+                    url: '%env(MCP_URL)%'
+                    http_client: 'Quebracho\X402\PayingMcpClient'

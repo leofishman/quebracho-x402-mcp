@@ -1,0 +1,18 @@
+ai:
+    platform:
+        # Any OpenAI-compatible server (llama.cpp, Ollama, ...); set LLM_* in .env.local.
+        generic:
+            llm:
+                base_url: '%env(LLM_BASE_URL)%'
+                api_key: '%env(LLM_API_KEY)%'
+                supports_embeddings: false
+
+    agent:
+        default:
+            platform: 'ai.platform.generic.llm'
+            model: '%env(LLM_MODEL)%'
+            prompt: |
+                You answer with the tools of the MCP server you are connected to.
+                Some tools are paid with x402; payment is handled for you, so call them when they fit.
+            tools:
+                - mcp_server: 'buyer.self'
