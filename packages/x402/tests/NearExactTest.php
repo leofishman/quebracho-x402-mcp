@@ -22,7 +22,7 @@ final class NearExactTest extends TestCase
             'scheme' => 'exact',
             'network' => NearExact::TESTNET_NETWORK,
             'asset' => NearExact::TESTNET_USDC,
-            'amount' => '0.01',
+            'amount' => '10000',
             'payTo' => self::RECEIVER_ID,
         ];
     }
@@ -61,6 +61,11 @@ final class NearExactTest extends TestCase
         );
     }
 
+    public function testNep366DiscriminantConstant(): void
+    {
+        self::assertSame((1 << 30) + 366, NearExact::NEP_366_DISCRIMINANT);
+    }
+
     public function testSupportsNearTestnetOnly(): void
     {
         $scheme = new NearExact();
@@ -97,7 +102,7 @@ final class NearExactTest extends TestCase
         $decoded = NearExact::decodeSignedDelegateAction($delegateActionHex . "\x00" . str_repeat("\x00", 64));
         self::assertNull($decoded); // CreateAccount action type is 0, decodeSignedDelegateAction expects FunctionCall (type 2)
 
-        // Now test encoding of DelegateAction with FunctionCall and verify LE serialization of integers
+        // Test encoding of DelegateAction with FunctionCall and verify exact byte representation against spec
         $encoded = NearExact::encodeDelegateAction(
             'aaa',
             'bbb',
@@ -109,6 +114,21 @@ final class NearExactTest extends TestCase
             2,
             str_repeat("\x00", 32)
         );
+
+        $expectedHex =
+            '03000000616161' . // sender_id: "aaa"
+            '03000000626262' . // receiver_id: "bbb"
+            '01000000' .       // actions len: 1
+            '02' .             // Action::FunctionCall (tag = 2)
+            '0b00000066745f7472616e73666572' . // method_name: "ft_transfer" (len=11)
+            '260000007b2272656365697665725f6964223a22636363222c22616d6f756e74223a223130303030227d' . // args: '{"receiver_id":"ccc","amount":"10000"}' (len=38 with unescaped JSON)
+            '00e057eb481b0000' . // gas: 30_000_000_000_000 (u64 LE: 0x00001b48eb57e000)
+            '01000000000000000000000000000000' . // deposit: 1 yoctoNEAR (u128 LE)
+            '0100000000000000' . // nonce: 1 (u64 LE)
+            '0200000000000000' . // max_block_height: 2 (u64 LE)
+            '00' . str_repeat('00', 32); // pubkey: ED25519(32x00)
+
+        self::assertSame($expectedHex, bin2hex($encoded));
 
         $decodedFunc = NearExact::decodeSignedDelegateAction($encoded . "\x00" . str_repeat("\x00", 64));
         self::assertNotNull($decodedFunc);

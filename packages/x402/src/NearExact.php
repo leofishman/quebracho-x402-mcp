@@ -9,7 +9,7 @@ final class NearExact implements Scheme {
 
   public const string TESTNET_NETWORK = 'near:testnet';
   public const string TESTNET_USDC = 'usdc.fakes.testnet';
-  public const int NEP_366_DISCRIMINANT = 1073742188; // (1 << 30) + 366
+  public const int NEP_366_DISCRIMINANT = (1 << 30) + 366; // 1073742190
 
   /**
    * @param ?string $secretKey
@@ -59,15 +59,12 @@ final class NearExact implements Scheme {
     $publicKeyBytes = sodium_crypto_sign_publickey($kp);
     $payTo = (string) ($req['payTo'] ?? '');
     $asset = (string) ($req['asset'] ?? self::TESTNET_USDC);
-    $amountDecimal = (string) ($req['amount'] ?? '0');
+    $amount = (string) ($req['amount'] ?? '0');
 
-    // Convert decimal USDC amount to atomic integer string (6 decimals).
-    $atomicAmount = self::toAtomicAmount($amountDecimal, 6);
-
-    // Build ft_transfer function call action args JSON
+    // Build ft_transfer function call action args JSON using atomic amount directly
     $ftArgsJson = json_encode([
       'receiver_id' => $payTo,
-      'amount' => $atomicAmount,
+      'amount' => $amount,
       'memo' => 'x402 payment',
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
@@ -141,7 +138,10 @@ final class NearExact implements Scheme {
 
     // Check expiry
     $currentBlockHeight = $this->clock ? ($this->clock)() : 0;
-    if ($currentBlockHeight > 0 && $decoded['max_block_height'] < $currentBlockHeight) {
+    if ($currentBlockHeight <= 0) {
+      return 'expired';
+    }
+    if ($decoded['max_block_height'] < $currentBlockHeight) {
       return 'expired';
     }
 
@@ -166,8 +166,7 @@ final class NearExact implements Scheme {
     }
 
     // Check amount
-    $expectedAtomic = self::toAtomicAmount((string) $req['amount'], 6);
-    if ((string) ($ftArgs['amount'] ?? '') !== $expectedAtomic) {
+    if ((string) ($ftArgs['amount'] ?? '') !== (string) $req['amount']) {
       return 'invalid_amount';
     }
 
@@ -330,19 +329,6 @@ final class NearExact implements Scheme {
 
   private static function readBytes(string $bytes, int &$offset): string {
     return self::readString($bytes, $offset);
-  }
-
-  private static function toAtomicAmount(string $amount, int $decimals): string {
-    $parts = explode('.', $amount, 2);
-    $intPart = $parts[0] === '' ? '0' : $parts[0];
-    $decPart = $parts[1] ?? '';
-    if (strlen($decPart) > $decimals) {
-      $decPart = substr($decPart, 0, $decimals);
-    } else {
-      $decPart = str_pad($decPart, $decimals, '0', STR_PAD_RIGHT);
-    }
-    $atomic = ltrim($intPart . $decPart, '0');
-    return $atomic === '' ? '0' : $atomic;
   }
 
   private static function base58Encode(string $bytes): string {

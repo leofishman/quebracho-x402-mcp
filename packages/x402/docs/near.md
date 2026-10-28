@@ -58,12 +58,12 @@ Borsh fields in order:
 NEAR uses NEP-461 domain separation prefix for signed off-chain payloads ([nearcore signable_message.rs](https://github.com/near/nearcore/blob/master/core/primitives/src/signable_message.rs)):
 - **Discriminant (`MessageDiscriminant`)**: `u32` (little-endian)
   - Formula for on-chain NEP messages: `(1 << 30) + nep_number`
-  - For NEP-366 meta-transactions: `(1 << 30) + 366` = `1073742188` (`0x4000016E` in hex, or `6E 01 00 40` in 4-byte LE Borsh).
+  - For NEP-366 meta-transactions: `(1 << 30) + 366` = `1073742190` (`0x4000016E` in hex, or `6E 01 00 40` in 4-byte LE Borsh).
 - **Message**: Borsh-serialized `DelegateAction`.
 
 `SignableMessage` Borsh layout:
 ```
-[4 bytes: discriminant u32 LE (1073742188)] + [Borsh bytes of DelegateAction]
+[4 bytes: discriminant u32 LE (1073742190)] + [Borsh bytes of DelegateAction]
 ```
 
 #### 3. Ed25519 Signing Payload
