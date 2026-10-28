@@ -1,0 +1,8 @@
+.env.local
+.env.*.local
+/app/var/
+/app/vendor/
+/packages/*/vendor/
+.phpunit.cache/
+.php-cs-fixer.cache
+/.ddev/traefik/
