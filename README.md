@@ -112,6 +112,22 @@ free tools pass through. The tool runs only after the payment verifies, and
 each payment is claimed once before the tool runs (concurrent replays get `duplicate_settlement`), settlement happens only if the tool succeeded; if settlement fails, the tool
 output is withheld. Paid tools cannot be called inside a JSON-RPC batch.
 
+### Address screening
+
+Both sides screen addresses with `App\X402\Screening`: the server checks the
+payer once its signature is verified, the agent checks `payTo` before it signs.
+First match wins: **our allowlist** (passes, even over OFAC), **our denylist**,
+**OFAC's sanctioned addresses** (a local copy), and optionally **Chainalysis'
+sanctions API** (`X402_SCREENING_API_KEY`; cached a day, fails closed, adds
+one HTTP call per new address).
+
+```bash
+ddev exec --dir /var/www/html/app bin/console app:screening sync          # download OFAC's lists
+ddev exec --dir /var/www/html/app bin/console app:screening deny 0x…      # our own report
+ddev exec --dir /var/www/html/app bin/console app:screening allow 0x…     # override a public list
+ddev exec --dir /var/www/html/app bin/console app:screening check 0x…
+```
+
 ## Configuration
 
 `app/.env` holds working defaults. Override them in `app/.env.local` (git-ignored):
@@ -125,6 +141,7 @@ output is withheld. Paid tools cannot be called inside a JSON-RPC batch.
 | `X402_FACILITATOR` | `mock` | Must be set explicitly. Only `mock` exists yet (verified signatures, nothing settled); anything else fails at boot. |
 | `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public and unfunded, enough for mock mode. Testnet keys only. |
 | `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
+| `X402_SCREENING_API_KEY` | empty | Chainalysis sanctions API key. Empty: only our lists and OFAC's. |
 | `MCP_URL` | the DDEV site's `/mcp` | The MCP server the agent connects to. |
 | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | placeholders | The agent's OpenAI-compatible LLM; set them in `.env.local`. |
 
@@ -164,7 +181,7 @@ $network = Networks::add(chainId: 4202, asset: '0x…', name: 'USDC', version: '
 ```
 
 **Other chain families** implement the `Scheme` interface (`supports`,
-`pay`, `verify`), shaped after the x402 spec rather than after EVM. `NearExact`
+`pay`, `verify`, `payer`), shaped after the x402 spec rather than after EVM. `NearExact`
 (`near:testnet`, NEP-366 delegate action, `ext-sodium`) is **experimental**:
 its `verify()` does not tie the public key to `sender_id` (the network checks
 that on settle), and it is not wired into the demo. Solana is planned.
@@ -178,10 +195,13 @@ Working and verified:
 - PSR-18 paying clients with a per-network spending cap: MCP in band (`PayingMcpClient`) and plain HTTP 402 (`PayingHttpClient`).
 - Symfony MCP server charging a tool end to end (`bin/smoke.sh`).
 - Symfony AI agent (`app:ask`) that discovers, pays and calls the tool, verified against a local llama.cpp model (mock mode).
+- Address screening on both sides (PSR-14 `AddressCheck`): our allow/deny lists, OFAC's sanctioned addresses, optional Chainalysis API.
 
 Not yet:
 - Settlement on testnet through a facilitator (mock mode only for now).
 - Unverified: the EIP-712 domains of USDC on Ethereum Sepolia, Avalanche Fuji and Polygon Amoy (confirmed by the first testnet payment on each).
+
+Plan, open tasks and what comes after the hackathon: [ROADMAP.md](ROADMAP.md).
 
 ## License
 

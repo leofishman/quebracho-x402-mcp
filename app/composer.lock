@@ -1668,7 +1668,7 @@
             "dist": {
                 "type": "path",
                 "url": "../packages/x402",
-                "reference": "5d43d26c15b1248a6f5645ea21a3e00abd1e47bf"
+                "reference": "13aedce98383d4437148a7903077d31713ac161b"
             },
             "require": {
                 "ext-gmp": "*",
@@ -1676,6 +1676,7 @@
                 "kornrunner/keccak": "^1.1",
                 "kornrunner/secp256k1": "^0.4",
                 "php": "^8.3",
+                "psr/event-dispatcher": "^1.0",
                 "psr/http-client": "^1.0",
                 "psr/http-factory": "^1.1",
                 "psr/http-server-middleware": "^1.0"
