@@ -47,6 +47,17 @@ Expected output, abridged:
 OK
 ```
 
+That runs in mock mode: real signatures, nothing moves on chain, no funds
+needed. To settle for real on Base Sepolia, add to `app/.env.local`:
+
+```bash
+X402_FACILITATOR=https://x402.org/facilitator
+```
+
+and run `bin/smoke.sh` again: the receipt now carries a transaction hash you can
+open on https://sepolia.basescan.org. The example buyer key holds testnet USDC
+(anyone can spend it; use your own key from the Circle faucet if it runs dry).
+
 The MCP endpoint is `https://quebracho-x402-mcp.ddev.site/mcp` (Streamable
 HTTP). You can also open it in the
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector).
