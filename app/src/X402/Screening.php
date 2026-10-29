@@ -229,7 +229,8 @@ final class Screening
             }
         };
 
-        return function () use ($response, $item, $address): ?string {
+        // $guard is captured only to live as long as this closure: do not drop it (cs-fixer would).
+        return function () use ($response, $item, $address, $guard): ?string { // @phpstan-ignore closure.unusedUse
             try {
                 $body = $response->toArray();
             } catch (TransportExceptionInterface|ServerExceptionInterface $e) {
