@@ -1,5 +1,7 @@
 {
+    "name": "quebracho/x402-mcp-app",
     "type": "project",
+    "description": "MCP server with a paid x402 tool and a Symfony AI agent that pays for it.",
     "license": "proprietary",
     "minimum-stability": "stable",
     "prefer-stable": true,
@@ -9,7 +11,7 @@
         "ext-iconv": "*",
         "mcp/sdk": "0.9.0",
         "nyholm/psr7": "^1.8",
-        "quebracho/x402": "@dev",
+        "quebracho/x402": "dev-main",
         "symfony/ai-agent": "0.15.0",
         "symfony/ai-bundle": "0.15.0",
         "symfony/ai-generic-platform": "0.15.0",
@@ -82,6 +84,7 @@
         "url": "../packages/x402"
     }],
     "require-dev": {
+        "phpstan/phpstan": "^2.3",
         "phpunit/phpunit": "^12"
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d21d3f8356cd939d47c085592e85789",
+    "content-hash": "0679b87af2c82da129bdada254964ab0",
     "packages": [
         {
             "name": "doctrine/deprecations",
@@ -1668,7 +1668,7 @@
             "dist": {
                 "type": "path",
                 "url": "../packages/x402",
-                "reference": "5d204082ed9e92d1e89a7489483d2831a21e3668"
+                "reference": "66878a3c069a12b0f49d19d790fc0577af3c41a6"
             },
             "require": {
                 "ext-gmp": "*",
@@ -1685,13 +1685,12 @@
                 "psr/http-server-middleware": "^1.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.95",
-                "infection/infection": "^0.35.8",
+                "friendsofphp/php-cs-fixer": "*",
+                "infection/infection": "*",
                 "nyholm/psr7": "^1.8",
-                "phpstan/phpstan": "^2.3",
+                "phpstan/phpstan": "*",
                 "phpunit/phpunit": "^12",
-                "shipmonk/composer-dependency-analyser": "^1.8",
-                "shipmonk/dead-code-detector": "^1.4"
+                "shipmonk/composer-dependency-analyser": "*"
             },
             "type": "library",
             "autoload": {
@@ -5921,6 +5920,70 @@
                 "source": "https://github.com/phar-io/version/tree/3.2.1"
             },
             "time": "2022-02-21T01:04:05+00:00"
+        },
+        {
+            "name": "phpstan/phpstan",
+            "version": "2.3.4",
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f20ce6f3c82556cfcfc086b152445a12d1d64fff",
+                "reference": "f20ce6f3c82556cfcfc086b152445a12d1d64fff",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.4|^8.0"
+            },
+            "conflict": {
+                "phpstan/phpstan-shim": "*"
+            },
+            "bin": [
+                "phpstan",
+                "phpstan.phar"
+            ],
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ondřej Mirtes"
+                },
+                {
+                    "name": "Markus Staab"
+                },
+                {
+                    "name": "Vincent Langlet"
+                }
+            ],
+            "description": "PHPStan - PHP Static Analysis Tool",
+            "keywords": [
+                "dev",
+                "static analysis"
+            ],
+            "support": {
+                "docs": "https://phpstan.org/user-guide/getting-started",
+                "forum": "https://github.com/phpstan/phpstan/discussions",
+                "issues": "https://github.com/phpstan/phpstan/issues",
+                "security": "https://github.com/phpstan/phpstan/security/policy",
+                "source": "https://github.com/phpstan/phpstan-src"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/ondrejmirtes",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/phpstan",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-10-28T22:38:53+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

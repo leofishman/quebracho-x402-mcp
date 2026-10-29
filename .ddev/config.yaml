@@ -4,4 +4,4 @@ docroot: app/public
 php_version: "8.4"
 webserver_type: nginx-fpm
 omit_containers: [db]
-webimage_extra_packages: [php8.4-gmp]
+webimage_extra_packages: [php8.4-gmp, php8.4-pcov]

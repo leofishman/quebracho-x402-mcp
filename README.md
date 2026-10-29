@@ -8,15 +8,14 @@ signed USDC authorization travels in an HTTP header.
 Built for the Symfony AI & MCP Hackathon (team Ombu). The x402 library is
 contributed by Quebracho.
 
-> **Testnet only.** Nothing here touches mainnet funds. By default the demo
-> runs in *mock mode*: signatures are real and fully verified, but nothing is
-> settled on chain, so you need no wallet and no faucet.
+> The demo runs on Base Sepolia. In *mock mode* signatures are real and fully
+> verified, but nothing is settled on chain, so you need no wallet and no faucet.
 
 ## What's inside
 
 | Path | What it is |
 |---|---|
-| `packages/x402/` | `quebracho/x402`: framework-agnostic library (PSR-7/15/17/18, `ext-gmp`). Signs and verifies x402 payments. Contains no LLM or Symfony code. |
+| `packages/x402/` | `quebracho/x402`: framework-agnostic library (PSR-7/15/17/18, `ext-gmp`). Signs and verifies x402 payments. |
 | `app/` | Symfony 8.1 + `symfony/mcp-bundle`: an MCP server with a free `echo` tool and a paid `wisdom` tool, and `bin/console app:ask`, a Symfony AI agent that discovers, pays and calls them. |
 | `bin/smoke.sh` | End-to-end check over real HTTP: free call, unpaid call (PaymentRequired), paid call (result + receipt). |
 | `bin/pay.php` | Minimal buyer: turns a PaymentRequired tool result into the same call, paid. |
@@ -157,7 +156,7 @@ ddev exec --dir /var/www/html/app bin/console app:screening check 0x…
 | `X402_PAY_TO` | `0x7e51…6510` | Who gets paid. **This is the author's wallet.** Change it to yours. |
 | `X402_PAID_TOOLS` | `wisdom` | Comma-separated tool names that cost money. |
 | `X402_FACILITATOR` | `mock` | Must be set explicitly: `mock` (verified signatures, nothing settled) or a facilitator URL such as `https://x402.org/facilitator` (real settle on testnet). Anything else fails closed: every `/mcp` request errors, nothing is served for free. |
-| `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public, holds testnet USDC; anyone can spend it. Testnet keys only. |
+| `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public, holds testnet USDC; anyone can spend it. Never put a key holding real funds in an env file. |
 | `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
 | `X402_SCREENING_API_KEY` | empty | Chainalysis sanctions API key. Empty: only our lists and OFAC's. |
 | `X402_SCREENING_CACHE_TTL` | `86400` | Seconds an API answer (clean or sanctioned) is kept. |
@@ -195,7 +194,8 @@ $client = new PayingHttpClient(
 ```
 
 **Networks**: built in: Base Sepolia, Arc testnet, Ethereum Sepolia, Avalanche
-Fuji, Polygon Amoy. Any other EVM chain whose token implements EIP-3009:
+Fuji, Polygon Amoy. Any other EVM chain, mainnets included, whose token
+implements EIP-3009:
 
 ```php
 $network = Networks::add(chainId: 4202, asset: '0x…', name: 'USDC', version: '2');
