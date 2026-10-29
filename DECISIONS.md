@@ -113,7 +113,7 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
   - Facilitator down: 502 on HTTP, `facilitator_unavailable` on MCP.
 - Still divergent (D9): nothing reconciles pending or silent settles automatically; they are logged with payer and nonce (or Circle's `paymentId`).
 
-## D12. Mock mode by name; one claim key per NEAR payment (audit 2026-10-29)
+## D12 — Mock mode by name; one claim key per NEAR payment (audit 2026-10-29)
 
 - Status: accepted (Leo: "soluciona los criticos")
 - Context: the x402-reviewer's full audit of v0.1.0 found that leaving out `$settle` silently ran mock mode (anyone who signs gets the delivery), and that a NEAR payment with a trailing byte or an extra payload field still verified under a new claim key, so N copies passed the claim.
