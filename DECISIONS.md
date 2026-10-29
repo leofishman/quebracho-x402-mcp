@@ -90,4 +90,5 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
   - `settlement_pending` is treated as a failure (output withheld) but now keeps its transaction hash in the receipt, so the seller can reconcile it. Nothing retries or reconciles it yet.
   - The HTTP transport answers an invalid payment with 402, not the 400 the spec's error table gives (MCP has no status codes; only `X402Middleware` is affected).
   - `duplicate_settlement` comes from the SVM scheme, not v2 §9; official clients do not know it.
+  - A facilitator that broadcasts but answers late (over 60 s) or drops the connection leaves `unexpected_settle_error` with no hash: the buyer may be charged without the output. The seller logs payer and nonce (`x402 settlement failed.`) to reconcile by hand with `authorizationState(from, nonce)`; nothing does it automatically.
   - EVM verification is offline: no balance check and no `transferWithAuthorization` simulation (`scheme_exact_evm.md`, phase 2). In mock mode a valid signature from an empty wallet gets the delivery.

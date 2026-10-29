@@ -22,7 +22,7 @@ final class Facilitator
         private readonly LoggerInterface $logger,
         private readonly HttpClientInterface $http,
     ) {
-        if ('mock' !== $mode && !preg_match('#^https://#', $mode)) {
+        if ('mock' !== $mode && ('https' !== parse_url($mode, \PHP_URL_SCHEME) || !parse_url($mode, \PHP_URL_HOST))) {
             throw new \LogicException(\sprintf('X402_FACILITATOR="%s": "mock" or an https:// facilitator URL.', $mode));
         }
     }
@@ -35,11 +35,42 @@ final class Facilitator
             return Settlement::run(null, $payment, $req);
         }
 
-        // Settlement::run reads the answer without trusting it; a thrown error is a failed settle.
-        return Settlement::run(fn (): array => $this->http->request('POST', rtrim($this->mode, '/').'/settle', [
-            'json' => ['x402Version' => 2, 'paymentPayload' => $payment, 'paymentRequirements' => $req],
-            'timeout' => 30,
-            'max_duration' => 60,
-        ])->toArray(false), $payment, $req);
+        $receipt = Settlement::run(fn (): array => $this->settle($payment, $req), $payment, $req);
+        if (true !== $receipt['success']) {
+            // The tool ran and its output is withheld: enough to reconcile with authorizationState(from, nonce).
+            $auth = $payment['payload']['authorization'] ?? [];
+            $this->logger->error('x402 settlement failed.', ['receipt' => $receipt, 'payer' => $auth['from'] ?? null, 'nonce' => $auth['nonce'] ?? null]);
+        }
+
+        return $receipt;
+    }
+
+    private function settle(array $payment, array $req): array
+    {
+        try {
+            $response = $this->http->request('POST', rtrim($this->mode, '/').'/settle', [
+                'json' => ['x402Version' => 2, 'paymentPayload' => $payment, 'paymentRequirements' => $req],
+                'timeout' => 30,
+                'max_duration' => 60,
+                // The signed payment goes to this host only.
+                'max_redirects' => 0,
+            ]);
+            $status = $response->getStatusCode();
+            $out = $response->toArray(false);
+        } catch (\Throwable $e) {
+            $this->logger->error('x402 facilitator unreachable or unreadable.', ['exception' => $e]);
+            throw $e;
+        }
+        $tx = $out['transaction'] ?? null;
+        // A success is a 2xx naming a real transaction on this network for this payer.
+        $ok = $status >= 200 && $status < 300
+            && \is_string($tx) && preg_match('/^0x[0-9a-fA-F]{64}$/', $tx)
+            && ($out['network'] ?? null) === $req['network']
+            && (!isset($out['payer']) || 0 === strcasecmp((string) $out['payer'], (string) ($payment['payload']['authorization']['from'] ?? '')));
+        if (($out['success'] ?? null) === true && !$ok) {
+            return ['success' => false, 'errorReason' => 'invalid_settle_response', 'transaction' => \is_string($tx) ? $tx : ''];
+        }
+
+        return $out;
     }
 }
