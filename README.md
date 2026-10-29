@@ -57,6 +57,10 @@ X402_FACILITATOR=https://x402.org/facilitator
 and run `bin/smoke.sh` again: the receipt now carries a transaction hash you can
 open on https://sepolia.basescan.org. The example buyer key holds testnet USDC
 (anyone can spend it; use your own key from the Circle faucet if it runs dry).
+The public facilitator is shared: about one settle in six fails on its side
+(`invalid_exact_evm_transaction_failed`, "replacement transaction underpriced"
+on its own wallet). Nothing is charged, the output is withheld and the same
+payment can be sent again.
 
 The MCP endpoint is `https://quebracho-x402-mcp.ddev.site/mcp` (Streamable
 HTTP). You can also open it in the
@@ -201,7 +205,8 @@ $network = Networks::add(chainId: 4202, asset: '0x…', name: 'USDC', version: '
 `pay`, `verify`, `payer`), shaped after the x402 spec rather than after EVM. `NearExact`
 (`near:testnet`, NEP-366 delegate action, `ext-sodium`) is **experimental**:
 its `verify()` does not tie the public key to `sender_id` (the network checks
-that on settle), and it is not wired into the demo. Solana is planned.
+that on settle), and it is not wired into the demo. `SolanaExact`
+(`solana:*`) pays and verifies offline; see the library README.
 
 ## Attacks it resists
 

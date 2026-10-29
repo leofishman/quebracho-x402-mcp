@@ -100,3 +100,15 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
 - Context: refactoring the Drupal module `x402_pay` onto this library found 13 gaps (G1–G13: facilitator clients, Solana, network catalogue, online verify, resource, upfront, unavailable facilitator, claim release, budget timeouts, outcome hook, RPC helpers, PSR-7 bridge notes, Packagist). The hub suggested only G7 and G2 before the cutoff.
 - Decision: all of G1–G13 go in, and we submit the week of 11-02, before 11-08, not on 11-20. Leo: "vamos x todo para el hackathon" and "tratemos de entregar el hackathon la semana que viene".
 - Consequences: the 11-09 cutoff is gone; README and video move to 11-04 → 11-07.
+
+## D11 — A real facilitator, verified before running; what frees a claim
+
+- Date: 2026-10-29
+- Status: accepted (follows from D10, decided by Leo; supersedes the parts of D5 and D9 below)
+- Context: D5 required `X402_FACILITATOR=mock`; D9 left divergences "until a real facilitator exists". Since 2026-10-29 the app settles real testnet USDC on Base Sepolia through https://x402.org/facilitator, and the library gained online verify, claim release and an upfront flow (G2–G10).
+- Decision:
+  - `X402_FACILITATOR` is `mock` or an `https://` facilitator URL; anything else still fails closed. A settle counts only when consistent (2xx, `success: true`, a transaction, our network, the payer who signed).
+  - The app asks the facilitator's `/verify` after the offline check and before the claim: an empty wallet runs nothing.
+  - A claim is freed only when nothing can have been charged: the handler delivered nothing, or the facilitator clearly refused (a reason, no transaction). It is kept for `settlement_pending`, `facilitator_unavailable` and `unexpected_settle_error`: the transaction may still land, and a freed claim would let the same payment buy a second delivery.
+  - Facilitator down: 502 on HTTP, `facilitator_unavailable` on MCP.
+- Still divergent (D9): nothing reconciles pending or silent settles automatically; they are logged with payer and nonce (or Circle's `paymentId`).

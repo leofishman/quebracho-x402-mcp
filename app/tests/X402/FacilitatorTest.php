@@ -65,4 +65,20 @@ final class FacilitatorTest extends TestCase
             }
         }
     }
+
+    public function testVerifyGivesTheFacilitatorsReason(): void
+    {
+        $verify = fn (MockResponse $r) => (new Facilitator('https://f.example', new NullLogger(), new MockHttpClient($r)))->verify(self::PAYMENT, self::REQ);
+        $this->assertNull($verify(new JsonMockResponse(['isValid' => true])));
+        $this->assertSame('insufficient_funds', $verify(new JsonMockResponse(['isValid' => false, 'invalidReason' => 'insufficient_funds'])));
+        $this->assertSame('invalid_payment', $verify(new JsonMockResponse(['isValid' => false])));
+        // Unreachable: thrown, so the middleware answers facilitator_unavailable.
+        $this->expectException(\Quebracho\X402\FacilitatorException::class);
+        $verify(new MockResponse('', ['error' => 'timeout']));
+    }
+
+    public function testMockVerifiesOfflineOnly(): void
+    {
+        $this->assertNull((new Facilitator('mock', new NullLogger(), new MockHttpClient()))->verify(self::PAYMENT, self::REQ));
+    }
 }
