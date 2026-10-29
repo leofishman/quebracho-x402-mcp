@@ -6,9 +6,11 @@ This repository handles payments, so we take reports seriously, but it is a
 hackathon project that runs **on testnets only**:
 
 - No mainnet networks are configured (`packages/x402/src/Networks.php`).
-- The app refuses to start unless `X402_FACILITATOR=mock`: nothing settles on chain.
-- The key in `app/.env` is the public example key from the web3.js docs. It is
-  unfunded on purpose; secret scanners flag it, and that is a known false positive.
+- `X402_FACILITATOR` is `mock` (nothing settles) or a facilitator URL; the demo
+  settles real testnet USDC on Base Sepolia through https://x402.org/facilitator.
+- The key in `app/.env` is the public example key from the web3.js docs, kept on
+  purpose. It holds testnet USDC anyone can spend; secret scanners flag it, and
+  that is a known false positive.
 
 No real funds are at stake. Do not send any to addresses found here.
 

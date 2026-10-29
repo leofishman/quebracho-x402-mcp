@@ -36,6 +36,9 @@ services:
             $price: !closure '@App\X402\Pricing'
             $claim: !closure '@Quebracho\X402\FileClaims'
             $settle: !closure '@App\X402\Facilitator'
+            $verify: !closure ['@App\X402\Facilitator', 'verify']
+            # A claim whose payment charged nothing is freed: the buyer may retry.
+            $release: !closure ['@Quebracho\X402\FileClaims', 'release']
             $responses: '@mcp.psr17_factory'
             $streams: '@mcp.psr17_factory'
             # AddressCheck on the payer, answered by App\X402\Screening.

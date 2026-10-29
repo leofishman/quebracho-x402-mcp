@@ -92,3 +92,11 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
   - `duplicate_settlement` comes from the SVM scheme, not v2 §9; official clients do not know it.
   - A facilitator that broadcasts but answers late (over 60 s) or drops the connection leaves `unexpected_settle_error` with no hash: the buyer may be charged without the output. The seller logs payer and nonce (`x402 settlement failed.`) to reconcile by hand with `authorizationState(from, nonce)`; nothing does it automatically.
   - EVM verification is offline: no balance check and no `transferWithAuthorization` simulation (`scheme_exact_evm.md`, phase 2). In mock mode a valid signature from an empty wallet gets the delivery.
+
+## D10 — Submit before 11-08, with every gap x402_pay found
+
+- Date: 2026-10-29
+- Status: accepted (Leo)
+- Context: refactoring the Drupal module `x402_pay` onto this library found 13 gaps (G1–G13: facilitator clients, Solana, network catalogue, online verify, resource, upfront, unavailable facilitator, claim release, budget timeouts, outcome hook, RPC helpers, PSR-7 bridge notes, Packagist). The hub suggested only G7 and G2 before the cutoff.
+- Decision: all of G1–G13 go in, and we submit the week of 11-02, before 11-08, not on 11-20. Leo: "vamos x todo para el hackathon" and "tratemos de entregar el hackathon la semana que viene".
+- Consequences: the 11-09 cutoff is gone; README and video move to 11-04 → 11-07.

@@ -40,6 +40,20 @@ final class Facilitator
         }
     }
 
+    /**
+     * The middlewares' $verify: the facilitator's /verify before the tool runs
+     * (balance, nonce unused), so an empty wallet costs no work. Mock: offline only.
+     */
+    public function verify(array $payment, array $req): ?string
+    {
+        if (null === $this->remote) {
+            return null;
+        }
+        $out = $this->remote->verify($payment, $req);
+
+        return true === $out['isValid'] ? null : (\is_string($out['invalidReason'] ?? null) ? $out['invalidReason'] : 'invalid_payment');
+    }
+
     public function __invoke(array $payment, array $req): array
     {
         if (null === $this->remote) {
