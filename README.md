@@ -176,8 +176,8 @@ gets the `tools/call` params. **Seller (plain HTTP)**: `X402Middleware` answers
 use Quebracho\X402\{EvmExact, FileClaims, Networks, X402Middleware};
 
 $price = fn ($request) => [Networks::requirements('eip155:84532', '0.01', $payTo)]; // or null = free
-$middleware = new X402Middleware([new EvmExact()], $price, $claim, $psr17, $psr17);
-// Optional 5th argument: a settle callback (facilitator). Without it: mock mode.
+$middleware = new X402Middleware([new EvmExact()], $price, $claim, $psr17, $psr17, $settle);
+// $settle: a facilitator callback, or Settlement::mock() (nothing moves on chain).
 ```
 
 **Buyer (MCP)**: `PayingMcpClient` wraps the PSR-18 client of an MCP HTTP

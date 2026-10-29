@@ -59,7 +59,7 @@ final class Facilitator
         if (null === $this->remote) {
             $this->logger->warning('x402 mock settlement: signature verified, nothing moved on chain.', ['network' => $req['network'], 'amount' => $req['amount']]);
 
-            return Settlement::run(null, $payment, $req);
+            return Settlement::run(Settlement::mock(), $payment, $req);
         }
 
         $receipt = Settlement::run(function () use ($payment, $req): array {

@@ -112,3 +112,13 @@ An accepted decision is never rewritten: if it changes, a new one replaces it.
   - A claim is freed only when nothing can have been charged: the handler delivered nothing, or the facilitator clearly refused (a reason, no transaction). It is kept for `settlement_pending`, `facilitator_unavailable` and `unexpected_settle_error`: the transaction may still land, and a freed claim would let the same payment buy a second delivery.
   - Facilitator down: 502 on HTTP, `facilitator_unavailable` on MCP.
 - Still divergent (D9): nothing reconciles pending or silent settles automatically; they are logged with payer and nonce (or Circle's `paymentId`).
+
+## D12. Mock mode by name; one claim key per NEAR payment (audit 2026-10-29)
+
+- Status: accepted (Leo: "soluciona los criticos")
+- Context: the x402-reviewer's full audit of v0.1.0 found that leaving out `$settle` silently ran mock mode (anyone who signs gets the delivery), and that a NEAR payment with a trailing byte or an extra payload field still verified under a new claim key, so N copies passed the claim.
+- Decision:
+  - `$settle` is required on both middlewares; mock mode is `Settlement::mock()`, and its receipt carries `extensions.mock: true`.
+  - NEAR: `decodeSignedDelegateAction` rejects trailing bytes, and `Settlement::key` is network + sender + public key + nonce.
+  - Also from the audit: `invalid_settle_response` keeps the claim (money may have moved); an upfront HTTP handler that throws after settling records `failed_after_settle`; the paying clients document that the wrapped PSR-18 client must not follow redirects.
+- Consequences: breaking for callers that relied on the default, so the next tag is v0.2.0.
