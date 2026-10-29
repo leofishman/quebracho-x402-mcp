@@ -229,7 +229,7 @@ final class Screening
             }
         };
 
-        return function () use ($response, $item, $address, $guard): ?string {
+        return function () use ($response, $item, $address): ?string {
             try {
                 $body = $response->toArray();
             } catch (TransportExceptionInterface|ServerExceptionInterface $e) {

@@ -24,9 +24,9 @@ final class Pricing
     }
 
     /**
-     * @param array{name: string, arguments?: array<string, mixed>} $params The tools/call params.
+     * @param array{name: string, arguments?: array<string, mixed>} $params the tools/call params
      *
-     * @return list<array>|null The x402 `accepts` list, or null when free.
+     * @return list<array>|null the x402 `accepts` list, or null when free
      */
     public function __invoke(array $params): ?array
     {
