@@ -28,8 +28,8 @@ services:
     Quebracho\X402\FileClaims:
         arguments: ['%kernel.project_dir%/var/x402-claims']
 
-    # Settlement goes through App\X402\Facilitator: X402_FACILITATOR=mock
-    # must be explicit; the testnet facilitator plugs in there on 6–8/11.
+    # Settlement goes through App\X402\Facilitator: X402_FACILITATOR is
+    # "mock" or a facilitator URL, never left implicit.
     Quebracho\X402\X402McpMiddleware:
         arguments:
             $schemes: ['@Quebracho\X402\EvmExact']

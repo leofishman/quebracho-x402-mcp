@@ -141,8 +141,8 @@ ddev exec --dir /var/www/html/app bin/console app:screening check 0x…
 | `X402_PRICE` | `0.01` | Price per paid call, in USD. |
 | `X402_PAY_TO` | `0x7e51…6510` | Who gets paid. **This is the author's wallet.** Change it to yours. |
 | `X402_PAID_TOOLS` | `wisdom` | Comma-separated tool names that cost money. |
-| `X402_FACILITATOR` | `mock` | Must be set explicitly. Only `mock` exists yet (verified signatures, nothing settled); anything else fails closed: every `/mcp` request errors, nothing is served for free. |
-| `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public and unfunded, enough for mock mode. Testnet keys only. |
+| `X402_FACILITATOR` | `mock` | Must be set explicitly: `mock` (verified signatures, nothing settled) or a facilitator URL such as `https://x402.org/facilitator` (real settle on testnet). Anything else fails closed: every `/mcp` request errors, nothing is served for free. |
+| `X402_BUYER_KEY` | web3.js docs key | The agent's buyer key: public, holds testnet USDC; anyone can spend it. Testnet keys only. |
 | `X402_BUDGET_USD` | `0.05` | The agent's spending cap per run on `X402_NETWORK`. |
 | `X402_SCREENING_API_KEY` | empty | Chainalysis sanctions API key. Empty: only our lists and OFAC's. |
 | `X402_SCREENING_CACHE_TTL` | `86400` | Seconds an API answer (clean or sanctioned) is kept. |
@@ -249,9 +249,9 @@ Working and verified:
 - Symfony MCP server charging a tool end to end (`bin/smoke.sh`).
 - Symfony AI agent (`app:ask`) that discovers, pays and calls the tool, verified against a local llama.cpp model (mock mode).
 - Address screening on both sides (PSR-14 `AddressCheck`): our allow/deny lists, OFAC's sanctioned addresses, optional Chainalysis API.
+- Settlement on testnet through a facilitator (`X402_FACILITATOR=https://x402.org/facilitator`, verified on Base Sepolia).
 
 Not yet:
-- Settlement on testnet through a facilitator (mock mode only for now).
 - Unverified: the EIP-712 domains of USDC on Ethereum Sepolia, Avalanche Fuji and Polygon Amoy (confirmed by the first testnet payment on each).
 
 Plan, open tasks and what comes after the hackathon: [ROADMAP.md](ROADMAP.md).
