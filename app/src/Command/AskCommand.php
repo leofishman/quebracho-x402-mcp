@@ -55,6 +55,9 @@ final class AskCommand
             }));
             $io->text('Receipt: '.json_encode($receipt, \JSON_UNESCAPED_SLASHES));
         }
+        foreach ($this->receipts->refused as ['req' => $req, 'reason' => $reason]) {
+            $io->text(\sprintf('Not paid: %s atomic on %s to %s (%s)', $req['amount'] ?? '?', $req['network'] ?? '?', $req['payTo'] ?? '?', $reason));
+        }
         if ([] === $this->receipts->all) {
             $io->text('Nothing paid.');
         }

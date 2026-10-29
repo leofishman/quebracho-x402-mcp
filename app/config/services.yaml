@@ -74,5 +74,6 @@ services:
                 arguments: ['%env(X402_NETWORK)%', '%env(X402_BUDGET_USD)%', !closure '@App\X402\AuthorizationState']
             $streams: '@mcp.psr17_factory'
             $onPaid: !closure '@App\X402\Receipts'
+            $onRefused: !closure ['@App\X402\Receipts', 'refused']
             # AddressCheck on payTo before signing, answered by App\X402\Screening.
             $events: '@event_dispatcher'
